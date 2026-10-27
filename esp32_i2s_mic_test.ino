@@ -15,11 +15,11 @@ void setup() {
   Serial.begin(115200);
   CLOGI << "setup";
 
-  i2s_config_t i2s_config = {
+  i2s_config_t i2s_config_old = {
       .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
       .sample_rate = 16000,
       .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-      .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
+      .channel_format = I2S_CHANNEL_FMT_ONLY_RIGHT,
       .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_STAND_I2S),
       .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
       .dma_buf_count = 8,
@@ -29,12 +29,34 @@ void setup() {
       .fixed_mclk = 0
   };
 
-  i2s_pin_config_t pin_config = {
-      .bck_io_num = 1,
-      .ws_io_num = 2,
-      .data_out_num = 3,
-      .data_in_num = I2S_PIN_NO_CHANGE
+  i2s_config_t i2s_config = {
+      .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
+      .sample_rate = 16000,
+      .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+      // Формат изменен на ПРАВЫЙ канал. Работает, если CTRL подключен к 3.3V
+      .channel_format = I2S_CHANNEL_FMT_ONLY_RIGHT,
+      .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_STAND_I2S),
+      .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+      .dma_buf_count = 8,
+      .dma_buf_len = 1024,  // Увеличен размер буфера во избежание щелчков
+      .use_apll = false,    // Для 16kHz APLL не обязателен
+      .tx_desc_auto_clear = true,
+      .fixed_mclk = 0
   };
+
+  // i2s_pin_config_t pin_config = {
+  //     .bck_io_num = 1,
+  //     .ws_io_num = 2,
+  //     .data_out_num = 3,
+  //     .data_in_num = I2S_PIN_NO_CHANGE
+  // };
+
+  i2s_pin_config_t pin_config = {
+        .bck_io_num = GPIO_NUM_26, // BCLK - orang
+        .ws_io_num = GPIO_NUM_25, // LRC - yellow
+        .data_out_num = GPIO_NUM_22, // DIN - broun
+        .data_in_num = I2S_PIN_NO_CHANGE
+    };
 
 
   // i2s_pin_config_t pin_config_org = {
@@ -57,6 +79,11 @@ void setup() {
     return;
   }
 
+  sendSound();
+
+}
+
+void sendSound(){
   CLOGI << "Writing PCM data, size: " << sizeof(_MERRY_CHRISTMAS_PCM) << " bytes";
   
   size_t bytes_written = 0;
@@ -68,7 +95,7 @@ void setup() {
     size_t chunk_size = (bytes_to_write > 1024) ? 1024 : bytes_to_write;
     size_t chunk_written = 0;
     
-    err = i2s_write(I2S_PORT, pcm_data + (total_bytes - bytes_to_write), 
+    esp_err_t err = i2s_write(I2S_PORT, pcm_data + (total_bytes - bytes_to_write), 
                     chunk_size, &chunk_written, pdMS_TO_TICKS(1000));
     
     if (err != ESP_OK) {
@@ -92,4 +119,5 @@ void setup() {
 }
 
 void loop() {
+  sendSound();
 }
